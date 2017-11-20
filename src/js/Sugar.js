@@ -14,12 +14,10 @@ let whenMsgGetted;
 
 let socketInit = function(){
   socket = io();
-  p2p = new P2P(socket,{ numClients: 50 });
-  p2p.useSockets = false;
-  
-  p2p.on('ready', function(){
-    p2p.usePeerConnection = true;
-    p2p.emit('peer-obj', { peerId: peerId });
+  p2p = new P2P(socket,{ numClients: 50 },()=>{
+      console.log("[P2P] webRTC 통신을 시작합니다.");
+      p2p.useSockets = false;
+      p2p.usePeerConnection = true;
   });
   
   p2p.on('peer-msg', (data) =>{
