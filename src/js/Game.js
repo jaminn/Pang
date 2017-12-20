@@ -349,7 +349,7 @@ class Player{
         playerPosY : this.container.y,
         hp : this.hp
       };
-      sendMsg({id: p2p.peerId, data : data});
+      Conn.sendMsg({id: Conn.socket.id, data : data});
     }
 }
 
@@ -357,7 +357,6 @@ Game.states.create('startScene', (scene)=>{
     window.startScene = scene;
     let container = new UI.Container(scene);
     let inputBar;
-    socketInit();
     renderPlayMode(scene, (key, spr, data)=>{
       if(spr === scene.sprs.back){
         spr.x = data.x;
@@ -368,12 +367,12 @@ Game.states.create('startScene', (scene)=>{
          let button = new UI.Button(container, spr, data.x, data.y);
         button.onClick = ()=>{
           let playerName = inputBar.text.text;
-          joinRoom("firstRoom",playerName, (name, cnt)=>{
+          Conn.joinRoom("firstRoom",playerName, (name, cnt)=>{
             if(name){
-              console.log(`[joinRoom] ${cnt}번째 플레이어 ${name}에 접속했습니다.`);
+              console.log(`[Conn.joinRoom] ${cnt}번째 플레이어 ${name}에 접속했습니다.`);
               Game.states.change('gameScene'); 
             }else{
-              console.log(`[joinRoom] 접속에 실패하였습니다.`);
+              console.log(`[Conn.joinRoom] 접속에 실패하였습니다.`);
             }
           });
         };
@@ -455,7 +454,7 @@ Game.states.create('gameScene', (scene)=>{
           
           for(let i=0; i < addedIds.length; i++){
             let id = addedIds[i];
-            if(id === p2p.peerId){
+            if(id === Conn.socket.id){
               let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, pNames[ids.indexOf(id)],"p1");
               p1 = player;
               player.container.x = pointContainer.children[i%4].x;
@@ -480,13 +479,13 @@ Game.states.create('gameScene', (scene)=>{
             });
           }
         };
-        renderPlayers([], IDS, P_NAMES);
-        console.log("IDS다");
-        console.log(IDS);
-        whenPeerEnter = (pastIds, pastPNames, ids, pNames)=>{
+        renderPlayers([], Conn.IDS, Conn.P_NAMES);
+        console.log("Conn.IDS다");
+        console.log(Conn.IDS);
+        Conn.whenPeerEnter = (pastIds, pastPNames, ids, pNames)=>{
           renderPlayers(pastIds, ids, pNames);
         };
-        whenMsgGetted = (data)=>{
+        Conn.whenMsgGetted = (data)=>{
           let id = data.id;
           let p0Data = data.data;
           players.forEach((player)=>{
@@ -506,7 +505,7 @@ Game.states.create('endingScene', (scene)=>{
   container.alignX = "center";
   container.alignY = "center";
   container.addChild(scene.sprs.deadscene);
-  leaveRoom(()=>{
+  Conn.leaveRoom(()=>{
     let whenMouseDown = ()=>{
       Mouse.downs.remove(whenMouseDown);
       Mouse.downs.reset();
@@ -515,48 +514,5 @@ Game.states.create('endingScene', (scene)=>{
     Mouse.downs.add(whenMouseDown);
   });
 });
-
-// Game.states.create('gameScene', (scene)=>{
-//     window.gameScene = scene;
-//     console.log(`[gameScene] 시작합니다.`); 
-//     renderEditMode(scene);
-//     //renderPlayMode(scene);
-// });
-
-/*Game.states.create('editScene', (scene) => {
-    console.log(`[editScene] 시작합니다.`);
-    Game.camera.smoothFollow = 2;
-    Game.camera.smoothZoom = 5;
-    let center = scene.addSpr("AD");
-    window.center = center;
-    center.alpha = 0.3;
-    let container = new Movables(scene, center);
-    container.follow(center, new Light.Point(0, 0));
-    window.container = container;
-    
-    let bottom = scene.addSpr("AD");
-    bottom.position.set(0,400);
-    let bottomCon = new UI.Container(scene, bottom);
-    let btn = new Button(bottomCon, UI.makeSpr('Start'), 0, 400);
-    btn.onClick = function(){
-        let start = new Movable(container, UI.makeSpr('Start'));
-    };
-});*/
-
-/*Game.states.create('startScene', (scene) => {
-    let testBtn = new Button(scene, UI.makeSpr("Start"), 0, 0);
-    let inputBar = new InputBar(scene, UI.makeSpr('inputNickname'), "hello!", 0, 0);
-
-    testBtn.onClick = function () {
-        console.log("테스트! 입니다.");
-    };
-    testBtn.onUpdate = function () {
-        //this.position.add(ArrowKey.dir.multiply(1).toPoint());
-        //this.rotation = Vec2.fromPoint(this.position).minus(Mouse.pos).toRad() * -1 - Math.PI/2;
-    };
-    inputBar.onUpdate = function () {
-        this.position.add(ArrowKey.dir.multiply(1).toPoint());
-    };
-});*/
 
 Game.states.change('initScene');

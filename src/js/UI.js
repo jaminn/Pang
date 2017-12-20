@@ -406,7 +406,7 @@ UI.Movables = class extends UI.Container {
                     scene.datas[child.key].layerIdx = this.children.indexOf(child);
                 }
 
-                sendCommand(`writeFile /scene/${this.parent.stateId}/data.json "${JSON.stringify(this.parent.datas)}"`,(isSaved)=>{
+                Conn.sendCommand(`writeFile /scene/${this.parent.stateId}/data.json "${JSON.stringify(this.parent.datas)}"`,(isSaved)=>{
                     if(isSaved){
                         alert("저장되었습니다.");
                     }else{

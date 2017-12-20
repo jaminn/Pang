@@ -236,7 +236,7 @@ Light.StateManager.prototype.create = function(stateId, callback){
         scene.sprs = {};
         scene.datas = {};
         let defalut = {x : 0, y : 0, layerIdx : 0};
-        sendCommand(`read /scene/${stateId}`,(files)=>{
+        Conn.sendCommand(`read /scene/${stateId}`,(files)=>{
             let sprPaths = {};
             let sprCnt = 0;
           
@@ -257,7 +257,7 @@ Light.StateManager.prototype.create = function(stateId, callback){
                     }
                 }
             }
-            sendCommand(`read /scene/${stateId}/data.json`,(json)=>{
+            Conn.sendCommand(`read /scene/${stateId}/data.json`,(json)=>{
                 if(json) scene.datas = $.parseJSON(json);
                 if(_.isEmpty(sprPaths)) callback(scene);
                 for(let name in sprPaths){
@@ -692,7 +692,7 @@ Light.State.prototype.loadFolder = function(folder, callback){
      return;
   };
   this[folder] = {};
-  sendCommand(`read /scene/${this.stateId}/${folder}`,(files)=>{
+  Conn.sendCommand(`read /scene/${this.stateId}/${folder}`,(files)=>{
     if(files){
         let fileCnt = 0;
         for(let file of files){

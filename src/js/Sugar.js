@@ -1,65 +1,51 @@
-let socket;
-let p2p;
+let Conn = {
+    init : function(){
+        this.socket = io();
+        // this.p2p = new P2P(this.socket,{ numClients: 50 }, () =>{
+        //     console.log("[P2P] webRTC 통신을 시작합니다.");
+        //     this.p2p.useSockets = false;
+        //     this.p2p.usePeerConnection = true;
+        // });
+        this.IDS = [];
+        this.P_NAMES = [];
+        
+        this.whenPeerEnter = (ids, pNames) => { console.log(`[Conn.whenPeerEnter] ${ids} ${pNames}`); }
+        this.whenMsgGetted = (data) => { console.log(`[Conn.whenMsgGetted] ${data}`);}  
+        
+        // this.p2p.on('peer-msg', (data) =>{
+        //   this.whenMsgGetted(data); 
+        // });
 
-let sendMsg;
-let sendCommand;
+        this.socket.on('peer-msg', (data) =>{
+          this.whenMsgGetted(data); 
+        });
+                
+        this.socket.on('peer-entered', (ids, pNames)=>{ 
+          let pastIds = this.IDS,  pastPNames = this.P_NAMES;
+          this.whenPeerEnter(pastIds, pastPNames, ids, pNames); 
+          this.IDS = ids, this.P_NAMES = pNames;
+        });
 
-let joinRoom;
-let leaveRoom;
-let whenPeerEnter;
-
-let IDS = [],  P_NAMES = [];
-
-let whenMsgGetted;
-
-let socketInit = function(){
-  socket = io();
-  p2p = new P2P(socket,{ numClients: 50 },()=>{
-      console.log("[P2P] webRTC 통신을 시작합니다.");
-      p2p.useSockets = false;
-      p2p.usePeerConnection = true;
-  });
-  
-  p2p.on('peer-msg', (data) =>{
-    whenMsgGetted(data); 
-  });
-
-  sendMsg = function(data){ 
-   p2p.emit('peer-msg', data); 
-  };
-  
-  sendCommand = function(command, callback){
-    callback = callback || ((data) => {console.log(data)});
-    socket.emit('msg', command, callback);
-  };
-  
-   joinRoom = function(name, pName,callback){
-    socket.emit('join-room',name, pName, callback);
-  }
-
-   leaveRoom = function(callback){
-      socket.emit('leave-room',callback);
-  }
-
-   whenPeerEnter = function(ids, pNames){
-      console.log(`[whenPeerEnter] ${ids} ${pNames}`);
-  }
-   
-  socket.on('peer-entered', (ids, pNames)=>{ 
-    let pastIds = IDS,  pastPNames = P_NAMES;
-    whenPeerEnter(pastIds, pastPNames, ids, pNames); 
-    IDS = ids, P_NAMES = pNames;
-  });
-  
-  whenMsgGetted = function(data){
-    console.log(`[whenMsgGetted] ${data}`);
-  };
-  
-  socket.on('connect', function () { 
-    console.log(`[socket] 준비되었습니다.`);
-  });
-};
-socketInit();
+        this.socket.on('connect', () => { 
+          console.log(`[this.socket] 준비되었습니다.`);
+        });
+    },
+    sendMsg : function(data){ 
+        //this.p2p.emit('peer-msg', data); 
+        this.socket.emit('peer-msg', data); 
+    },
+    sendCommand : function(command, callback){
+        callback = callback || ((data) => {console.log(data)});
+        this.socket.emit('msg', command, callback);
+    },
+    joinRoom : function(name, pName, callback){
+        this.socket.emit('join-room',name, pName, callback);
+    },
+    leaveRoom : function(callback){
+        this.socket.emit('leave-room', callback);
+    }
+}
+Conn.init();
 
 let Game = new Light.Game('game', window.innerWidth, window.innerHeight, '#282828', (asset) => {
     //asset.loadImage('Main', 'scene/startScene/Main.png');
