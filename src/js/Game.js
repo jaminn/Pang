@@ -50,8 +50,7 @@ let Input = class {
       mousePosY : 0,
       isMouseDown : 0,
       playerPosX : 0,
-      playerPosY : 0,
-      hp : 0
+      playerPosY : 0
     }; 
   }
   isKeyLeft(){
@@ -91,11 +90,6 @@ let Input = class {
     if(this.mode === "p0") return this.getMousePos(container).subtract(cen);
     if(this.mode === "p1") return this.getMousePos(container).subtract(cen);
     if(this.mode === "p2") return this.getMousePos(container).subtract(cen);
-  }
-  getHp(player){
-    if(this.mode === "p0") return this.p0Data.hp;
-    if(this.mode === "p1") return player.hp;
-    if(this.mode === "p2") return player.hp;
   }
   setPlayerPos(container){
     container.x = this.p0Data.playerPosX;
@@ -163,7 +157,6 @@ class Player{
           hpBar.position.set(container.position);
           hpBar.y -= 30;
           hpBar.x += this.body.spr.width/2 - hpBar.backSpr.width/2;
-          this.hp = this.input.getHp(this);
           this.tmpHp = (this.tmpHp - this.hp) / 10 + this.hp;
           hpBar.frontSpr.width = hpBar.backSpr.width * this.tmpHp / 100;
         };
@@ -226,31 +219,17 @@ class Player{
               body.whenMatchesChange(sprs.right, sprs.rightW);
             }
             
-            let whenBeShoted = () => {
-              Game.camera.shake(0, 20, 3,3);
-              let scale = 5;
-              if(this.hp-scale>0){
-                this.hp -= scale;
-              }else{
-                console.log("[whenBeShoted] 죽었습니다.");
-                this.players.forEach((player)=>{
-                  player.destory();
-                  this.players.remove(player);
-                  console.log(this.players);
-                });
-                Game.states.change('endingScene');
-              }
-            };
-            
             if(this.mode === "p1"){
-              this.players.forEach((player)=>{
-                if(player === this) return;
-                player.bulletCon.children.forEach((bullet)=>{
+                this.bulletCon.children.forEach((bullet)=>{
                   let pos = bullet.position.clone();
                   pos.y -= bullet.height/2;
-                  if(this.container.getBounds().contains(pos)) whenBeShoted();
+                  
+                  for(let player of this.players) if(player.id !== this.id){
+                    //console.log(player.id);
+                    if(player.container.getBounds().contains(pos))
+                      Conn.sendOtherShooted(player.id);
+                  }
                 });
-              });
             }
         };
     }
@@ -346,8 +325,7 @@ class Player{
         isMouseDown : (Mouse.key === "Left") ? true : false,
         mouseUpCnt : 0,
         playerPosX : this.container.x,
-        playerPosY : this.container.y,
-        hp : this.hp
+        playerPosY : this.container.y
       };
       Conn.sendMsg({id: Conn.socket.id, data : data});
     }
@@ -447,8 +425,25 @@ Game.states.create('gameScene', (scene)=>{
         Game.camera.smoothFollow = 10;
         
         let p1;
-        let renderPlayers = (pastIds, ids, pNames)=>{
-          console.log(`[renderPlayers] pastIds : ${pastIds}, ids : ${ids}, pastIds : ${pNames}`);
+        
+        Conn.whenHpChanged = (data)=>{
+          for(let player of players) if(player.id === data.id){
+            player.hp = data.hp;
+            if(player.mode === "p1"){
+              Game.camera.shake(0, 20, 3,3);
+              if(player.hp !== 0) return;
+              
+              console.log("[whenBeShoted] 죽었습니다.");
+              players.forEach((player)=>{
+                player.destory();
+                players.remove(player);
+              });
+              Game.states.change('endingScene');
+            }
+          }
+        };
+        let renderPlayers = (pastIds, ids, pNames, hps)=>{
+          console.log(`[renderPlayers] pastIds : ${pastIds}, ids : ${ids}, pastIds : ${pNames}, hps: ${hps}`);
           let removedIds = _.difference(pastIds,ids);
           let addedIds = _.difference(ids, pastIds);
           
@@ -461,10 +456,12 @@ Game.states.create('gameScene', (scene)=>{
               player.container.y = pointContainer.children[i%4].y - 70;
               Game.camera.follow(player.container);
               player.id = id;
+              player.hp = hps[ids.indexOf(id)];
               players.push(player);
             }else{
               let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, pNames[ids.indexOf(id)],"p0");
               player.id = id;
+              player.hp = hps[ids.indexOf(id)];
               players.push(player);
             }
           }
@@ -479,11 +476,11 @@ Game.states.create('gameScene', (scene)=>{
             });
           }
         };
-        renderPlayers([], Conn.IDS, Conn.P_NAMES);
+        renderPlayers([], Conn.IDS, Conn.P_NAMES, Conn.hps);
         console.log("Conn.IDS다");
         console.log(Conn.IDS);
-        Conn.whenPeerEnter = (pastIds, pastPNames, ids, pNames)=>{
-          renderPlayers(pastIds, ids, pNames);
+        Conn.whenPeerEnter = (pastIds, pastPNames, ids, pNames, hps)=>{
+          renderPlayers(pastIds, ids, pNames, hps);
         };
         Conn.whenMsgGetted = (data)=>{
           let id = data.id;
@@ -505,14 +502,14 @@ Game.states.create('endingScene', (scene)=>{
   container.alignX = "center";
   container.alignY = "center";
   container.addChild(scene.sprs.deadscene);
-  Conn.leaveRoom(()=>{
-    let whenMouseDown = ()=>{
-      Mouse.downs.remove(whenMouseDown);
-      Mouse.downs.reset();
-      Game.states.change('startScene');
-    };
-    Mouse.downs.add(whenMouseDown);
-  });
+  
+  let whenMouseDown = ()=>{
+    Mouse.downs.remove(whenMouseDown);
+    Mouse.downs.reset();
+    Game.states.change('startScene');
+  };
+  Mouse.downs.add(whenMouseDown);
+
 });
 
 Game.states.change('initScene');

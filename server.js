@@ -8,27 +8,29 @@ let fs = require('fs');
 let idToRoom = {};
 let roomToPName = {};
 let idToSocket = {};
+let idToHp = {};
 
-let Api = {dir : './src'};
-Api.readDir = function(path, callback){
+let Api = {
+  dir : './src',
+  readDir : function(path, callback){
     callback = callback || ((files) => { console.log(files); });
     fs.readdir(`${this.dir}${path}`, 'utf8', (err, files) => {
       callback(files);
     });  
-};
-Api.readFile = function(path, callback){
+  },
+  readFile : function(path, callback){
     callback = callback || ((text) => { console.log(text); });
     fs.readFile(`${this.dir}${path}`, 'utf8', (err, text) => {
       callback(text);
     });  
-};
-Api.read = function(path, callback){
+  },
+  read : function(path, callback){
     if(path.match(/^.+?\/?\w+?\.\w+$/g))
         this.readFile(path, callback);
     else
         this.readDir(path, callback);
-};
-Api.writeFile = function(path, data, callback){
+  },
+  writeFile : function(path, data, callback){
     let patt = /\"(.*)\"/g;
     let raw = patt.exec(data);
     data = raw[1];
@@ -40,50 +42,61 @@ Api.writeFile = function(path, data, callback){
       if (err) callback(false);
       else callback(true);
     });
-};
-Api.joinRoom = function(socket, name, playerName, callback){
+  },
+  joinRoom : function(socket, name, playerName, callback){
     callback = callback || ((name) => { console.log(`[Api.joinRoom] ${name}방에 접속합니다.`); });
     if(!io.sockets.adapter.sids[socket.id][name]){
       idToRoom[socket.id] = name;
-      idToSocket[socket.id] = socket;
       if(!roomToPName[name]) roomToPName[name] = {};
       roomToPName[name][socket.id] = playerName;
       socket.join(name);
-      // p2p(socket, null, {name: name});
+
+      idToHp[socket.id] = 100;
+
       let ids = Object.keys(socket.adapter.rooms[name].sockets);
       let pNames = Object.values(roomToPName[name]);
-      io.sockets.in(name).emit('peer-entered',ids, pNames);
-      socket.on('peer-msg', msg => { socket.broadcast.to(name).emit('peer-msg', msg) } );
+      let hps = ids.map((id)=> idToHp[id]);
+
+      io.sockets.in(name).emit('peer-entered',ids, pNames, hps);
+      socket.on('peer-msg', msg => { 
+        socket.broadcast.to(name).emit('peer-msg', msg) 
+      });
+      socket.on('other-shooted', id =>{
+        //console.log(`${id}가 총알에 맞았습니다.`);
+        let delta = 5;
+        if(0 < idToHp[id] - delta) idToHp[id] = idToHp[id] - delta;
+        else idToHp[id] = 0;
+
+        io.sockets.in(name).emit('hp-changed', {id: id, hp: idToHp[id]});
+        if(idToHp[id] === 0) this.leaveRoom(idToSocket[id]);
+      
+      });
       let cnt = ids.length;
       callback(name,cnt);
-    }else{
-      //callback(null,0);
+    }else{;
     }
-};
-Api.leaveRoom = function(socket, callback){
+  },
+  leaveRoom : function(socket, callback){
     callback = callback || ((name) => { console.log(`[Api.leaveRoom] ${name}방에서 나갑니다.`); });
     let name = idToRoom[socket.id];
     if(roomToPName[name]) delete roomToPName[name][socket.id];
-    
-//     let clients = Object.keys(roomToPName[name]);
-//     clients.forEach((clientId)=>{
-//         console.log(clientId);
-//         let client = idToSocket[clientId];
-//         client.emit('peer-disconnect', {peerId: socket.id});
-//     });
     
     if(socket.adapter.rooms[name]){
       socket.leave(name);
       let ids = Object.keys(socket.adapter.rooms[name].sockets);
       delete idToRoom[socket.id];
+      delete idToHp[socket.id];
       let pNames = Object.values(roomToPName[name]);
       io.sockets.in(name).emit('peer-entered',ids, pNames);
       callback(name);
     }
-};
+  }
+}
+
 
 
 io.on('connection', function (socket) {
+  idToSocket[socket.id] = socket;
   socket.on('msg', function (msg, callback) {
     let command;
     if(!msg.includes(' ')) command = [msg, '','',''];
@@ -106,6 +119,7 @@ io.on('connection', function (socket) {
   });
   
   socket.on('disconnect', function(){
+    delete idToSocket[socket.id];
     let name = idToRoom[socket.id];
     if(!name) return;
     

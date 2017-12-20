@@ -1,42 +1,38 @@
 let Conn = {
     init : function(){
         this.socket = io();
-        // this.p2p = new P2P(this.socket,{ numClients: 50 }, () =>{
-        //     console.log("[P2P] webRTC 통신을 시작합니다.");
-        //     this.p2p.useSockets = false;
-        //     this.p2p.usePeerConnection = true;
-        // });
         this.IDS = [];
         this.P_NAMES = [];
         
-        this.whenPeerEnter = (ids, pNames) => { console.log(`[Conn.whenPeerEnter] ${ids} ${pNames}`); }
+        this.whenPeerEnter = (pastIds, ids, pNames, hps) => { console.log(`[Conn.whenPeerEnter] ${ids} ${pNames} ${hps}`); }
         this.whenMsgGetted = (data) => { console.log(`[Conn.whenMsgGetted] ${data}`);}  
-        
-        // this.p2p.on('peer-msg', (data) =>{
-        //   this.whenMsgGetted(data); 
-        // });
+        this.whenHpChanged = (data) => { console.log(`[Conn.whenHpChanged] ${data}`);}  
 
         this.socket.on('peer-msg', (data) =>{
           this.whenMsgGetted(data); 
         });
                 
-        this.socket.on('peer-entered', (ids, pNames)=>{ 
+        this.socket.on('peer-entered', (ids, pNames, hps)=>{
           let pastIds = this.IDS,  pastPNames = this.P_NAMES;
-          this.whenPeerEnter(pastIds, pastPNames, ids, pNames); 
-          this.IDS = ids, this.P_NAMES = pNames;
+          this.whenPeerEnter(pastIds, pastPNames, ids, pNames, hps); 
+          this.IDS = ids, this.P_NAMES = pNames, this.hps = hps;
         });
+
+        this.socket.on('hp-changed', (data)=>{ this.whenHpChanged(data) });
 
         this.socket.on('connect', () => { 
           console.log(`[this.socket] 준비되었습니다.`);
         });
     },
     sendMsg : function(data){ 
-        //this.p2p.emit('peer-msg', data); 
         this.socket.emit('peer-msg', data); 
     },
     sendCommand : function(command, callback){
         callback = callback || ((data) => {console.log(data)});
         this.socket.emit('msg', command, callback);
+    },
+    sendOtherShooted: function(id){
+        this.socket.emit('other-shooted', id);
     },
     joinRoom : function(name, pName, callback){
         this.socket.emit('join-room',name, pName, callback);

@@ -126,11 +126,11 @@ Light.Game.prototype.init = function () {
     this.parent.appendChild(this.canvas);
     this.context = this.canvas.getContext('2d');
 
-    var vendors = ['ms', 'moz', 'webkit', 'o'];
-    for (var i = 0; i < vendors.length && !window.requestAnimationFrame; i++) {
-        window.requestAnimationFrame = window[vendors[i] + 'RequestAnimationFrame'];
-        window.cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'];
-    }
+    // var vendors = ['ms', 'moz', 'webkit', 'o'];
+    // for (var i = 0; i < vendors.length && !window.requestAnimationFrame; i++) {
+    //     window.requestAnimationFrame = window[vendors[i] + 'RequestAnimationFrame'];
+    //     window.cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'];
+    // }
     this.rafId = window.requestAnimationFrame(this.run.bind(this));
 
     this.camera = new Light.Camera(this);
