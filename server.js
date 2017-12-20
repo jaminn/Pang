@@ -2,7 +2,7 @@ let express = require('express');
 let app = express();  
 let server = require('http').createServer(app);  
 let io = require('socket.io')(server);
-var p2p = require('socket.io-p2p-server').Server;
+// var p2p = require('socket.io-p2p-server').Server;
 let fs = require('fs'); 
 
 let idToRoom = {};
@@ -49,10 +49,11 @@ Api.joinRoom = function(socket, name, playerName, callback){
       if(!roomToPName[name]) roomToPName[name] = {};
       roomToPName[name][socket.id] = playerName;
       socket.join(name);
-      p2p(socket, null, {name: name});
+      // p2p(socket, null, {name: name});
       let ids = Object.keys(socket.adapter.rooms[name].sockets);
       let pNames = Object.values(roomToPName[name]);
       io.sockets.in(name).emit('peer-entered',ids, pNames);
+      socket.on('peer-msg', msg => { socket.broadcast.to(name).emit('peer-msg', msg) } );
       let cnt = ids.length;
       callback(name,cnt);
     }else{
