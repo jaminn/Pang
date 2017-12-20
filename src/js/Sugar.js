@@ -9,7 +9,7 @@ let Conn = {
         this.whenHpChanged = (data) => { console.log(`[Conn.whenHpChanged] ${data}`);}  
 
         this.socket.on('peer-msg', (data) =>{
-          this.whenMsgGetted(data); 
+          this.whenMsgGetted(msgpack.decode(new Uint8Array(data))); 
         });
                 
         this.socket.on('peer-entered', (ids, pNames, hps)=>{

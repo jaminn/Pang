@@ -327,7 +327,7 @@ class Player{
         playerPosX : this.container.x,
         playerPosY : this.container.y
       };
-      Conn.sendMsg({id: Conn.socket.id, data : data});
+      Conn.sendMsg(msgpack.encode({id: Conn.socket.id, data : data}).buffer);
     }
 }
 
