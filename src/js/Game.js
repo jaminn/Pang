@@ -197,10 +197,12 @@ class Player{
             deltaX = 0;
             deltaY = 0;
             this.mousePos = input.getMousePos(container);
-            if(input.isKeyLeft())  container.body.velocity.x = -speed;
-            if(input.isKeyRight()) container.body.velocity.x =  speed;
-            if(input.isKeyUp())    container.body.velocity.y = -speed;
-            if(input.isKeyDown())  container.body.velocity.y =  speed;
+            if(this.mode === "p1"){
+              if(input.isKeyLeft())  container.body.velocity.x = -speed;
+              if(input.isKeyRight()) container.body.velocity.x =  speed;
+              if(input.isKeyUp())    container.body.velocity.y = -speed;
+              if(input.isKeyDown())  container.body.velocity.y =  speed;
+            }
           
             if(Area.isUp(pos))    body.changeWhenOther(sprs.back, [sprs.backW1, sprs.backW2]);
             if(Area.isDown(pos))  body.changeWhenOther(sprs.front, [sprs.frontW1, sprs.frontW2]);
