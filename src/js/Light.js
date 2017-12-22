@@ -257,17 +257,18 @@ Light.StateManager.prototype.create = function(stateId, callback){
                     }
                 }
             }
-            Conn.sendCommand(`read /scene/${stateId}/data.json`,(json)=>{
+            Conn.sendCommand(`read /scene/${stateId}/data.json`, async (json)=>{
                 if(json) scene.datas = $.parseJSON(json);
-                if(_.isEmpty(sprPaths)) callback(scene);
-                for(let name in sprPaths){
+                if(_.isEmpty(sprPaths)) return callback(scene);
+
+                let names = Object.keys(sprPaths);
+                await Promise.all(names.map(async (name) => {
                     let path = sprPaths[name];
-                    new Light.Sprite(path,(spr)=>{
-                      scene.sprs[name] = spr;
-                      if(Object.keys(sprPaths).length <= ++sprCnt)
-                        callback(scene);
-                    });
-                }
+                    let spr = await Light.Sprite.buildSprByPath(path);
+                    scene.sprs[name] = spr;
+                }));
+                console.log(scene.sprs);
+                callback(scene);
             });
         });
     });
@@ -552,14 +553,12 @@ Light.EntityContainer.prototype.replaceChild = function(fromEle, toEle){
   this.removeChild(fromEle);
 };
 
-Light.Sprite = function (image, callback) {
+Light.Sprite = function (image) {
     Light.EntityContainer.call(this);
     if (typeof image === 'string') {
-        if(!callback) callback = ()=>{console.log(`[Light.Sprite] 스프라이트 로딩 됨`)};
         this.texture = new Image();
         this.texture.src = image;
         let onLoad = (e) =>{ 
-          callback(this);
           e.target.removeEventListener('load', onLoad);
         };
         this.texture.addEventListener('load', onLoad);
@@ -568,6 +567,20 @@ Light.Sprite = function (image, callback) {
         this.texture = image;
     }
 };
+
+Light.Sprite.buildSprByPath = function(path){
+    let texture = new Image();
+    texture.src = path;
+    let spr = new Light.Sprite(texture);
+    return new Promise((success)=>{
+        let onLoad = (e) =>{ 
+            success(spr);
+            e.target.removeEventListener('load', onLoad);
+        };
+        texture.addEventListener('load', onLoad);
+    });
+}
+
 Light.Sprite.prototype = Object.create(Light.EntityContainer.prototype);
 Light.Sprite.prototype.constructor = Light.Sprite;
 Light.Sprite.prototype.changeLoaded = function (game, img) {
@@ -686,28 +699,24 @@ Light.State.prototype.update = function (elapsed) {
     this.height = this.game.height;
     this.onUpdate(elapsed);
 };
-Light.State.prototype.loadFolder = function(folder, callback){
-  if(this[folder]){
-     callback(this[folder]);
-     return;
-  };
-  this[folder] = {};
-  Conn.sendCommand(`read /scene/${this.stateId}/${folder}`,(files)=>{
-    if(files){
-        let fileCnt = 0;
-        for(let file of files){
-            let patt = /\.png/g;
-            if(patt.test(file)){
+Light.State.prototype.loadFolder = function(folder){
+    return new Promise((success)=>{
+        if(this[folder]) success(this[folder]);
+
+        Conn.sendCommand(`read /scene/${this.stateId}/${folder}`, async (files)=>{
+            let sprs = {};
+            await Promise.all(files.map(async (file) => {
+                let patt = /\.png/g;
+                if(!patt.test(file)) return;
                 let path = `scene/${this.stateId}/${folder}/${file}`;
                 let name = file.replace(".png","");
-                new Light.Sprite(path,(spr)=>{
-                  this[folder][name] = spr;
-                  if(files.length <= ++fileCnt) callback(this[folder]);
-                });
-            }
-        }
-    }
-  });
+                let spr = await Light.Sprite.buildSprByPath(path);
+                sprs[name] = spr;
+            }));
+            this[folder] = sprs;
+            success(this[folder]);
+        });
+    });
 };
 
 Light.Camera = function (game) {

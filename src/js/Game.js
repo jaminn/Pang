@@ -342,16 +342,16 @@ Game.states.create('startScene', (scene)=>{
         container.addChild(spr);
       }
       if(spr === scene.sprs.start){
-         let button = new UI.Button(container, spr, data.x, data.y);
+        let button = new UI.Button(container, spr, data.x, data.y);
+        let isAvailable = true;
         button.onClick = ()=>{
+          if(!isAvailable) return;
+          isAvailable = false;
           let playerName = inputBar.text.text;
           Conn.joinRoom("firstRoom", playerName, (name, cnt)=>{
-            if(name){
-              console.log(`[Conn.joinRoom] ${cnt}번째 플레이어 ${name}에 접속했습니다.`);
-              Game.states.change('gameScene'); 
-            }else{
-              console.log(`[Conn.joinRoom] 접속에 실패하였습니다.`);
-            }
+            if(!name) console.log(`[Conn.joinRoom] 접속에 실패하였습니다.`);
+            console.log(`[Conn.joinRoom] ${cnt}번째 플레이어 ${name}에 접속했습니다.`);
+            Game.states.change('gameScene'); 
           });
         };
       }
@@ -411,85 +411,85 @@ Game.states.create('gameScene', (scene)=>{
       }
     });
   
-    scene.loadFolder('p1',(sprs)=>{
-        let players = scene.players = [];
-        let playersContainer = scene.playersContainer = new UI.Container(scene);
-        let bulletsContainer = scene.bulletsContainer = new UI.Container(scene);
-        let namesContainer   = scene.namesContainer   = new UI.Container(scene);
-        let hpsContainer     = scene.hpsContainer     = new UI.Container(scene);
+    let players = scene.players = [];
+    let playersContainer = scene.playersContainer = new UI.Container(scene);
+    let bulletsContainer = scene.bulletsContainer = new UI.Container(scene);
+    let namesContainer   = scene.namesContainer   = new UI.Container(scene);
+    let hpsContainer     = scene.hpsContainer     = new UI.Container(scene);
+  
+    scene.children.moveToNext(pointContainer, fore);
+    scene.children.moveToNext(playersContainer, fore);
+    scene.children.moveToNext(bulletsContainer, fore);
+  
+    Game.camera.smoothFollow = 10;
+    
+    let p1;
+    Conn.whenHpChanged = (data)=>{
+      let player = players.find(p=> p.id === data.id);
+      if(!player) return;
+      player.hp = data.hp;
       
-        scene.children.moveToNext(pointContainer, fore);
-        scene.children.moveToNext(playersContainer, fore);
-        scene.children.moveToNext(bulletsContainer, fore);
+      if(player.mode === "p1"){
+        Game.camera.shake(0, 20, 3,3);
+        if(player.hp !== 0) return;
+        
+        console.log("[whenBeShoted] 죽었습니다.");
+        for(player of players){
+          player.destory();
+          players.remove(player);
+        }
+        Game.states.change('endingScene');
+      }
+    };
+
+    let renderPlayers = async (pastPeers, peers)=>{
+      let sprs = await scene.loadFolder('p1');
+      let addedPeers = _.differenceBy(peers, pastPeers, 'id');
+      let removedPeers = _.differenceBy(pastPeers, peers, 'id');
+      console.log(addedPeers);
+      console.log(removedPeers);
       
-        Game.camera.smoothFollow = 10;
-        
-        let p1;
-        
-        Conn.whenHpChanged = (data)=>{
-          let player = players.find(p=> p.id === data.id);
-          if(!player) return;
-          player.hp = data.hp;
-          
-          if(player.mode === "p1"){
-            Game.camera.shake(0, 20, 3,3);
-            if(player.hp !== 0) return;
-            
-            console.log("[whenBeShoted] 죽었습니다.");
-            for(player of players){
-              player.destory();
-              players.remove(player);
-            }
-            Game.states.change('endingScene');
-          }
-        };
-        let renderPlayers = (pastPeers, peers)=>{
-          let addedPeers = _.differenceBy(peers, pastPeers, 'id');
-          let removedPeers = _.differenceBy(pastPeers, peers, 'id');
-          console.log(addedPeers);
-          console.log(removedPeers);
-          
-          for(let peer of addedPeers){
-            if(peer.id === Conn.socket.id){
-              let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, peer.name,"p1");
-              p1 = player;
-              player.container.x = pointContainer.children[peers.indexOf(peer) % 4].x;
-              player.container.y = pointContainer.children[peers.indexOf(peer) % 4].y - 70;
-              Game.camera.follow(player.container);
-              player.id = peer.id;
-              player.hp = peer.hp;
-              players.push(player);
-            }else{
-              let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, peer.name,"p0");
-              player.id = peer.id;
-              player.hp = peer.hp;
-              players.push(player);
-            }
-          }
-          for(let peer of removedPeers){
-            let player = players.find(p=> p.id === peer.id);
-            if(!player) continue;
-            player.destory();
-            players.remove(player);
-          }
-        };
-        renderPlayers([], Conn.pastPeers);
-        Conn.whenPeerEnter = (pastPeers, peers)=>{
-          renderPlayers(pastPeers, peers);
-        };
-        Conn.whenMsgGetted = (data)=>{
-          let id = data.id;
-          let p0Data = data.data;
-          players.forEach((player)=>{
-            if(player.id === id){
-              player.input.setP0Data(p0Data, player.container);
-            }
-          });
-        };
-        playersContainer.onUpdate = (elapsed) => {
-          if(p1) p1.sendData();
-        };
-    });
+      for(let peer of addedPeers){
+        if(peer.id === Conn.socket.id){
+          let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, peer.name,"p1");
+          p1 = player;
+          player.container.x = pointContainer.children[peers.indexOf(peer) % 4].x;
+          player.container.y = pointContainer.children[peers.indexOf(peer) % 4].y - 70;
+          Game.camera.follow(player.container);
+          player.id = peer.id;
+          player.hp = peer.hp;
+          players.push(player);
+        }else{
+          let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, peer.name,"p0");
+          player.id = peer.id;
+          player.hp = peer.hp;
+          players.push(player);
+        }
+      }
+      for(let peer of removedPeers){
+        let player = players.find(p=> p.id === peer.id);
+        if(!player) continue;
+        player.destory();
+        players.remove(player);
+      }
+    };
+    renderPlayers([], Conn.pastPeers);
+    Conn.whenPeerEnter = (pastPeers, peers)=>{
+      renderPlayers(pastPeers, peers);
+    };
+    Conn.whenMsgGetted = (data)=>{
+      let id = data.id;
+      let p0Data = data.data;
+      players.forEach((player)=>{
+        if(player.id === id){
+          player.input.setP0Data(p0Data, player.container);
+        }
+      });
+    };
+    playersContainer.onUpdate = (elapsed) => {
+      if(p1) p1.sendData();
+    };
+    
 });
 
 Game.states.create('endingScene', (scene)=>{
