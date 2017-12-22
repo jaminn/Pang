@@ -202,6 +202,11 @@ class Player{
               if(input.isKeyRight()) container.body.velocity.x =  speed;
               if(input.isKeyUp())    container.body.velocity.y = -speed;
               if(input.isKeyDown())  container.body.velocity.y =  speed;
+            }else{
+              if(input.isKeyLeft())  container.x += -speed;
+              if(input.isKeyRight()) container.x +=  speed;
+              if(input.isKeyUp())    container.y += -speed;
+              if(input.isKeyDown())  container.y +=  speed;
             }
           
             if(Area.isUp(pos))    body.changeWhenOther(sprs.back, [sprs.backW1, sprs.backW2]);
