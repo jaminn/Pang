@@ -188,8 +188,9 @@ class Player{
         Game.physics.add(container);
         container.body.maxVelocity.x = speed;
         container.body.maxVelocity.y = speed;
-        container.body.friction.x = 0.3;
-        container.body.friction.y = 0.3;
+        container.body.friction.x = 0;
+        container.body.friction.y = 0;
+        
         container.body.isCollisionAllowed = false;
 
         this.bodyUpdate = (elapsed,pos,mousePos) => {
