@@ -303,6 +303,14 @@ class Player{
             for(let player of this.players) if(player.id !== this.id){
               if(player.container.contains(bullet.position)){
                 this.bulletCon.children.remove(bullet);
+                
+                player.body.spr.tint("rgba(255,0,0,0.5)");
+                player.arm.spr.tint("rgba(255,0,0,0.5)");
+                setTimeout(()=>{
+                  player.body.spr.removeTint();
+                  player.arm.spr.removeTint();
+                },200);
+                
                 if(this.mode === "p1") Conn.sendOtherShooted(player.id);
               }
             }

@@ -586,6 +586,12 @@ Light.Sprite.prototype.constructor = Light.Sprite;
 Light.Sprite.prototype.changeLoaded = function (game, img) {
     this.texture = game.asset.getImage(img);
 };
+Light.Sprite.prototype.tint = function(color){
+    this.color = color;
+}
+Light.Sprite.prototype.removeTint = function(color){
+    this.tintCache = null;
+}
 Light.Sprite.prototype.onRender = function (context) {
     context.mozImageSmoothingEnabled = true;
     context.webkitImageSmoothingEnabled = true;
@@ -593,7 +599,29 @@ Light.Sprite.prototype.onRender = function (context) {
     context.msImageSmoothingEnabled = true;
     context.imageSmoothingEnabled = true;
 
-    context.drawImage(this.texture, 0, 0);
+    if((this.color && !this.tintCache) || (this.tintCache && this.tintCache.texture.src !== this.texture.src)){
+        let color = this.color || this.tintCache.color;
+        buffer = document.createElement('canvas');
+        buffer.width = this.texture.width;
+        buffer.height = this.texture.height;
+        bx = buffer.getContext('2d');
+    
+        bx.fillStyle = color;
+        bx.fillRect(0,0,buffer.width,buffer.height);
+    
+        bx.globalCompositeOperation = "destination-atop";
+        bx.drawImage(this.texture, 0,0);
+    
+        context.drawImage(this.texture, 0,0);
+    
+        context.globalAlpha = this.alpha;
+        this.tintCache = {buffer: buffer, texture: this.texture, color: color};
+        this.color = null;
+    }
+
+    if(this.tintCache) context.drawImage(this.tintCache.buffer, 0, 0);
+    else context.drawImage(this.texture, 0, 0);
+
     Light.EntityContainer.prototype.onRender.apply(this, arguments);
 };
 Object.defineProperties(Light.Sprite.prototype, {
