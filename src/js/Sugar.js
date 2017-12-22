@@ -1,10 +1,9 @@
 let Conn = {
     init : function(){
         this.socket = io();
-        this.IDS = [];
-        this.P_NAMES = [];
+        this.pastPeers = [];
         
-        this.whenPeerEnter = (pastIds, ids, pNames, hps) => { console.log(`[Conn.whenPeerEnter] ${ids} ${pNames} ${hps}`); }
+        this.whenPeerEnter = (pastPeers, peers) => { console.log(`[Conn.whenPeerEnter] ${peers}`); }
         this.whenMsgGetted = (data) => { console.log(`[Conn.whenMsgGetted] ${data}`);}  
         this.whenHpChanged = (data) => { console.log(`[Conn.whenHpChanged] ${data}`);}  
 
@@ -12,10 +11,9 @@ let Conn = {
           this.whenMsgGetted(msgpack.decode(new Uint8Array(data))); 
         });
                 
-        this.socket.on('peer-entered', (ids, pNames, hps)=>{
-          let pastIds = this.IDS,  pastPNames = this.P_NAMES;
-          this.whenPeerEnter(pastIds, pastPNames, ids, pNames, hps); 
-          this.IDS = ids, this.P_NAMES = pNames, this.hps = hps;
+        this.socket.on('peer-entered', (peers)=>{
+          this.whenPeerEnter(this.pastPeers, peers); 
+          this.pastPeers = peers;
         });
 
         this.socket.on('hp-changed', (data)=>{ this.whenHpChanged(data) });

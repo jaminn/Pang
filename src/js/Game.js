@@ -345,7 +345,7 @@ Game.states.create('startScene', (scene)=>{
          let button = new UI.Button(container, spr, data.x, data.y);
         button.onClick = ()=>{
           let playerName = inputBar.text.text;
-          Conn.joinRoom("firstRoom",playerName, (name, cnt)=>{
+          Conn.joinRoom("firstRoom", playerName, (name, cnt)=>{
             if(name){
               console.log(`[Conn.joinRoom] ${cnt}번째 플레이어 ${name}에 접속했습니다.`);
               Game.states.change('gameScene'); 
@@ -427,60 +427,55 @@ Game.states.create('gameScene', (scene)=>{
         let p1;
         
         Conn.whenHpChanged = (data)=>{
-          for(let player of players) if(player.id === data.id){
-            player.hp = data.hp;
-            if(player.mode === "p1"){
-              Game.camera.shake(0, 20, 3,3);
-              if(player.hp !== 0) return;
-              
-              console.log("[whenBeShoted] 죽었습니다.");
-              players.forEach((player)=>{
-                player.destory();
-                players.remove(player);
-              });
-              Game.states.change('endingScene');
+          let player = players.find(p=> p.id === data.id);
+          if(!player) return;
+          player.hp = data.hp;
+          
+          if(player.mode === "p1"){
+            Game.camera.shake(0, 20, 3,3);
+            if(player.hp !== 0) return;
+            
+            console.log("[whenBeShoted] 죽었습니다.");
+            for(player of players){
+              player.destory();
+              players.remove(player);
             }
+            Game.states.change('endingScene');
           }
         };
-        let renderPlayers = (pastIds, ids, pNames, hps)=>{
-          console.log(`[renderPlayers] pastIds : ${pastIds}, ids : ${ids}, pastIds : ${pNames}, hps: ${hps}`);
-          let removedIds = _.difference(pastIds,ids);
-          let addedIds = _.difference(ids, pastIds);
+        let renderPlayers = (pastPeers, peers)=>{
+          let addedPeers = _.differenceBy(peers, pastPeers, 'id');
+          let removedPeers = _.differenceBy(pastPeers, peers, 'id');
+          console.log(addedPeers);
+          console.log(removedPeers);
           
-          for(let i=0; i < addedIds.length; i++){
-            let id = addedIds[i];
-            if(id === Conn.socket.id){
-              let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, pNames[ids.indexOf(id)],"p1");
+          for(let peer of addedPeers){
+            if(peer.id === Conn.socket.id){
+              let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, peer.name,"p1");
               p1 = player;
-              player.container.x = pointContainer.children[i%4].x;
-              player.container.y = pointContainer.children[i%4].y - 70;
+              player.container.x = pointContainer.children[peers.indexOf(peer) % 4].x;
+              player.container.y = pointContainer.children[peers.indexOf(peer) % 4].y - 70;
               Game.camera.follow(player.container);
-              player.id = id;
-              player.hp = hps[ids.indexOf(id)];
+              player.id = peer.id;
+              player.hp = peer.hp;
               players.push(player);
             }else{
-              let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, pNames[ids.indexOf(id)],"p0");
-              player.id = id;
-              player.hp = hps[ids.indexOf(id)];
+              let player = new Player(scene, players, playersContainer, bulletsContainer, namesContainer, hpsContainer, sprs, peer.name,"p0");
+              player.id = peer.id;
+              player.hp = peer.hp;
               players.push(player);
             }
           }
-          for(let i=0; i < removedIds.length; i++){
-            let id = removedIds[i];
-            players.forEach((val,idx)=>{
-              //console.log(`[renderPlayers] ${val.id} ${id}`);
-              if(val.id === id){
-                val.destory();
-                players.remove(val);
-              } 
-            });
+          for(let peer of removedPeers){
+            let player = players.find(p=> p.id === peer.id);
+            if(!player) continue;
+            player.destory();
+            players.remove(player);
           }
         };
-        renderPlayers([], Conn.IDS, Conn.P_NAMES, Conn.hps);
-        console.log("Conn.IDS다");
-        console.log(Conn.IDS);
-        Conn.whenPeerEnter = (pastIds, pastPNames, ids, pNames, hps)=>{
-          renderPlayers(pastIds, ids, pNames, hps);
+        renderPlayers([], Conn.pastPeers);
+        Conn.whenPeerEnter = (pastPeers, peers)=>{
+          renderPlayers(pastPeers, peers);
         };
         Conn.whenMsgGetted = (data)=>{
           let id = data.id;
@@ -492,7 +487,7 @@ Game.states.create('gameScene', (scene)=>{
           });
         };
         playersContainer.onUpdate = (elapsed) => {
-          p1.sendData();
+          if(p1) p1.sendData();
         };
     });
 });
