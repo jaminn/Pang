@@ -13,14 +13,14 @@ let Img = class {
     constructor(container, spr){ this.spr = container.addChild(_.cloneDeep(spr)); }
     isSame(spr)  { return this.spr.texture === spr.texture; }
     change(spr)  { if(!this.isSame(spr)) this.spr.texture = spr.texture; }
-    whenOtherChange(spr, ...allowedSprs) {
+    changeWhenOther(spr, allowedSprs) {
         let isOther = true;
         for(let allowed of allowedSprs)
             if(this.isSame(allowed)) isOther = false; 
                 
         if(isOther) this.change(spr);
     }
-    whenMatchesChange(spr, ...allowedSprs) {
+    changeWhenMatch(spr, allowedSprs) {
         let isMatch = false;
         for(let allowed of allowedSprs)
             if(this.isSame(allowed)) isMatch = true; 
@@ -28,16 +28,17 @@ let Img = class {
         if(isMatch) this.change(spr);
     }
 };
+class Area{
+  static isLeftUp(pos)    { return ((-pos.x)-pos.y) > 0; }
+  static isRightDown(pos) { return ((-pos.x)-pos.y) <= 0; }
+  static isRightUp(pos)   { return (pos.y-pos.x) <= 0; }
+  static isLeftDown(pos)  { return (pos.y-pos.x) > 0; }
 
-let isLeftUp    = (pos)=>{ return ((-pos.x)-pos.y) > 0; };
-let isRightDown = (pos)=>{ return ((-pos.x)-pos.y) <= 0; };
-let isRightUp   = (pos)=>{ return (pos.y-pos.x) <= 0; };
-let isLeftDown  = (pos)=>{ return (pos.y-pos.x) > 0; };
-
-let isUp    = (pos)=>{ return isLeftUp(pos)  && isRightUp(pos); };
-let isDown  = (pos)=>{ return isLeftDown(pos)&& isRightDown(pos); };
-let isLeft  = (pos)=>{ return isLeftUp(pos)  && isLeftDown(pos); };
-let isRight = (pos)=>{ return isRightUp(pos) && isRightDown(pos); };
+  static isUp(pos)    { return Area.isLeftUp(pos)  && Area.isRightUp(pos); }
+  static isDown(pos)  { return Area.isLeftDown(pos)&& Area.isRightDown(pos); }
+  static isLeft(pos)  { return Area.isLeftUp(pos)  && Area.isLeftDown(pos); }
+  static isRight(pos) { return Area.isRightUp(pos) && Area.isRightDown(pos); }
+}
 
 let cloneSpr = (container, spr)=>{ return container.addChild(_.cloneDeep(spr)); };
 
@@ -130,7 +131,6 @@ class Player{
         
         container.width = body.spr.width;
         container.height = body.spr.height;
-        //Game.physics.add(container);
         
         this.bodyUpdate   = ()=>{ };
         this.armUpdate    = ()=>{ };
@@ -181,55 +181,36 @@ class Player{
         });
         timer.start();
         
-        let speed = 5;
+        let speed = 6;
         let deltaX;
         let deltaY;    
-      
+        
+        Game.physics.add(container);
+        container.body.maxVelocity.x = speed;
+        container.body.maxVelocity.y = speed;
+        container.body.friction.x = 0.3;
+        container.body.friction.y = 0.3;
+        container.body.isCollisionAllowed = false;
+
         this.bodyUpdate = (elapsed,pos,mousePos) => {
             deltaX = 0;
             deltaY = 0;
             this.mousePos = input.getMousePos(container);
-            if(input.isKeyLeft())  deltaX -= speed;
-            if(input.isKeyRight()) deltaX += speed;
-            if(input.isKeyUp())    deltaY -= speed;
-            if(input.isKeyDown())  deltaY += speed;
+            if(input.isKeyLeft())  container.body.velocity.x = -speed;
+            if(input.isKeyRight()) container.body.velocity.x =  speed;
+            if(input.isKeyUp())    container.body.velocity.y = -speed;
+            if(input.isKeyDown())  container.body.velocity.y =  speed;
           
-            container.x += deltaX;
-            let rect;
-            for(let wall of scene.wallContainer.children){
-                rect = wall.getIntersect(container);
-                if(rect) container.x -= deltaX;
-             }
-          
-            container.y += deltaY;
-            for(let wall of scene.wallContainer.children){
-                rect = wall.getIntersect(container);
-                if(rect) container.y -= deltaY;
-             }
-          
-            if(isUp(pos))    body.whenOtherChange(sprs.back, sprs.backW1, sprs.backW2);
-            if(isDown(pos))  body.whenOtherChange(sprs.front, sprs.frontW1, sprs.frontW2);
-            if(isLeft(pos))  body.whenOtherChange(sprs.left, sprs.leftW);
-            if(isRight(pos)) body.whenOtherChange(sprs.right, sprs.rightW);
+            if(Area.isUp(pos))    body.changeWhenOther(sprs.back, [sprs.backW1, sprs.backW2]);
+            if(Area.isDown(pos))  body.changeWhenOther(sprs.front, [sprs.frontW1, sprs.frontW2]);
+            if(Area.isLeft(pos))  body.changeWhenOther(sprs.left, [sprs.leftW]);
+            if(Area.isRight(pos)) body.changeWhenOther(sprs.right, [sprs.rightW]);
           
             if(!input.isArrowKey()){
-              body.whenMatchesChange(sprs.back, sprs.backW1, sprs.backW2);
-              body.whenMatchesChange(sprs.front, sprs.frontW1, sprs.frontW2);
-              body.whenMatchesChange(sprs.left, sprs.leftW);
-              body.whenMatchesChange(sprs.right, sprs.rightW);
-            }
-            
-            if(this.mode === "p1"){
-                this.bulletCon.children.forEach((bullet)=>{
-                  let pos = bullet.position.clone();
-                  pos.y -= bullet.height/2;
-                  
-                  for(let player of this.players) if(player.id !== this.id){
-                    //console.log(player.id);
-                    if(player.container.getBounds().contains(pos))
-                      Conn.sendOtherShooted(player.id);
-                  }
-                });
+              body.changeWhenMatch(sprs.back, [sprs.backW1, sprs.backW2]);
+              body.changeWhenMatch(sprs.front, [sprs.frontW1, sprs.frontW2]);
+              body.changeWhenMatch(sprs.left, [sprs.leftW]);
+              body.changeWhenMatch(sprs.right, [sprs.rightW]);
             }
         };
     }
@@ -241,16 +222,16 @@ class Player{
       
       this.armUpdate = (elapsed,pos,mousePos) => {
         this.pos = input.getPos(container, this.cen);
-        if(isUp(pos)) {
+        if(Area.isUp(pos)) {
           arm.change(sprs.twohand);
           container.children.moveToNext(arm.spr, body.spr);
-        } else if(isDown(pos)) {
+        } else if(Area.isDown(pos)) {
           arm.change(sprs.twohand);
           container.children.moveToNext(body.spr, arm.spr);
-        } else if(isLeft(pos)) {
+        } else if(Area.isLeft(pos)) {
           arm.change(sprs.onehand_L);
           container.children.moveToNext(body.spr, arm.spr);
-        } else if(isRight(pos)) {
+        } else if(Area.isRight(pos)) {
           arm.change(sprs.onehand_R);
           container.children.moveToNext(body.spr, arm.spr);
         }
@@ -259,7 +240,7 @@ class Player{
     }
     initBullet(input, scene, container, bulletCon, sprs, arm, body){     
       let timeCnt = 0;
-      let secWait = 0.1;
+      let secWait = 0.2;
       let timeToShotBullet = (elapsed, callback)=>{
         if(timeCnt > secWait){
           if(input.isMouseDown()){ 
@@ -275,38 +256,56 @@ class Player{
           let pos = this.pos;
           let mousePos = this.mousePos;
         
-          let bullet = new Img(bulletCon, sprs.bullet);
+          let bulletObj = new Img(bulletCon, sprs.bullet);
+          let bullet = bulletObj.spr;
           let setSprY = (y) => {
-            bullet.spr.position.set(this.cen);
-            bullet.spr.position.add(container.position);
-            bullet.spr.y -= y;
-            bullet.spr.rotationCenter.y = y;
-            bullet.spr.initPos = new Light.Point(bullet.spr.x, bullet.spr.y);
+            bullet.position.set(this.cen);
+            bullet.position.add(container.position);
+            bullet.y -= y;
+            bullet.rotationCenter.y = y;
+            bullet.initPos = new Light.Point(bullet.x, bullet.y);
+
+            bullet.x += Math.cos(bullet.rotation) * 10;
+            bullet.y += Math.sin(bullet.rotation) * 10;
           };
           
-          if(isUp(pos)) {
-            setSprY(bullet.spr.height/2);
-          } else if(isDown(pos)) {
-            setSprY(bullet.spr.height/2);
-          } else if(isLeft(pos)) {
-            setSprY(bullet.spr.height/2 - 5);
-          } else if(isRight(pos)) {
-            setSprY(bullet.spr.height/2 + 5);
+
+          bullet.rotation = this.cen.getRotation(mousePos);
+          if(Area.isUp(pos)) {
+            setSprY(bullet.height/2);
+          } else if(Area.isDown(pos)) {
+            setSprY(bullet.height/2);
+          } else if(Area.isLeft(pos)) {
+            setSprY(bullet.height/2 - 5);
+          } else if(Area.isRight(pos)) {
+            setSprY(bullet.height/2 + 5);
           }
-          bullet.spr.rotation = this.cen.getRotation(mousePos);
         });
         
-        let speed = 2000;
-        for(let bulletSpr of bulletCon.children){
-          if(Math.abs(bulletSpr.initPos.x - bulletSpr.x) > 1000) bulletCon.children.remove(bulletSpr);
-          if(Math.abs(bulletSpr.initPos.y - bulletSpr.y) > 1000) bulletCon.children.remove(bulletSpr);
-          
-          bulletSpr.x += Math.cos(bulletSpr.rotation) * speed * elapsed;
-          bulletSpr.y += Math.sin(bulletSpr.rotation) * speed * elapsed;
-          for(let wall of scene.wallContainer.children){
-              if(wall.contains(bulletSpr.position))
-                  bulletCon.children.remove(bulletSpr);
+        let speed = 1000;
+        for(let bullet of bulletCon.children){
+          if(Math.abs(bullet.initPos.x - bullet.x) > 1000) bulletCon.children.remove(bullet);
+          if(Math.abs(bullet.initPos.y - bullet.y) > 1000) bulletCon.children.remove(bullet);
+          let divideNum = Math.ceil((speed * elapsed) / bullet.width);
+
+          for(let i=0; i<divideNum; i++){
+            bullet.x += Math.cos(bullet.rotation) * speed * elapsed / divideNum;
+            bullet.y += Math.sin(bullet.rotation) * speed * elapsed / divideNum;
+              
+            for(let player of this.players) if(player.id !== this.id){
+              if(player.container.contains(bullet.position)){
+                this.bulletCon.children.remove(bullet);
+                if(this.mode === "p1") Conn.sendOtherShooted(player.id);
+              }
+            }
           }
+          
+
+          for(let wall of scene.wallContainer.children){
+              if(wall.contains(bullet.position))
+                  bulletCon.children.remove(bullet);
+          }
+
         }
       };
     }
@@ -480,11 +479,8 @@ Game.states.create('gameScene', (scene)=>{
     Conn.whenMsgGetted = (data)=>{
       let id = data.id;
       let p0Data = data.data;
-      players.forEach((player)=>{
-        if(player.id === id){
-          player.input.setP0Data(p0Data, player.container);
-        }
-      });
+      player = players.find(p => p.id === id);
+      if(player) player.input.setP0Data(p0Data, player.container);
     };
     playersContainer.onUpdate = (elapsed) => {
       if(p1) p1.sendData();

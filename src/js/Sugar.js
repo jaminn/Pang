@@ -78,12 +78,9 @@ let renderEditMode = function(scene){
 let renderPlayMode = function(scene, callback){
     orDatas = Object.entries(scene.datas);
     orDatas.sort((first, second)=>{
-       if (first[1].layerIdx == second[1].layerIdx)
-          return 0;
-       if (first[1].layerIdx < second[1].layerIdx)
-          return -1;
-       else
-          return 1; 
+       if (first[1].layerIdx == second[1].layerIdx) return 0;
+       if (first[1].layerIdx < second[1].layerIdx) return -1;
+       return 1; 
     });
     
     for(let orData of orDatas){
