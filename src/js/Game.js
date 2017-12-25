@@ -41,6 +41,12 @@ class Area{
 }
 
 let cloneSpr = (container, spr)=>{ return container.addChild(_.cloneDeep(spr)); };
+let playAudio = (name, volume = 0.3) => {
+  let sound = Game.asset.getAudio(name);
+  sound.currentTime = 0;
+  sound.volume = volume;
+  sound.play();
+};
 
 let Input = class {
   constructor(mode){
@@ -110,7 +116,7 @@ class Player{
         this.mode = mode;
         this.hp = 100;
         this.tmpHp = 100;
-      
+
         this.players = players;
         this.playersContainer = playersContainer;
         this.bulletsContainer = bulletsContainer;
@@ -163,21 +169,22 @@ class Player{
     }
     initBody(input, scene, container, sprs, arm, body){
         let timer = new Light.Timer(Game, 0.1, -1, ()=>{
-             if(!input.isArrowKey()) return;
-              
-             if(body.isSame(sprs.back))        body.change(sprs.backW1);
-             else if(body.isSame(sprs.backW1)) body.change(sprs.backW2);
-             else if(body.isSame(sprs.backW2)) body.change(sprs.backW1);
-              
-             if(body.isSame(sprs.front))        body.change(sprs.frontW1);
-             else if(body.isSame(sprs.frontW1)) body.change(sprs.frontW2);
-             else if(body.isSame(sprs.frontW2)) body.change(sprs.frontW1);
-              
-             if(body.isSame(sprs.left))       body.change(sprs.leftW);
-             else if(body.isSame(sprs.leftW)) body.change(sprs.left);
-              
-             if(body.isSame(sprs.right))       body.change(sprs.rightW);
-             else if(body.isSame(sprs.rightW)) body.change(sprs.right);
+            if(!input.isArrowKey()) return;
+            if(this.mode === "p1") playAudio('step');
+             
+            if(body.isSame(sprs.back))        body.change(sprs.backW1);
+            else if(body.isSame(sprs.backW1)) body.change(sprs.backW2);
+            else if(body.isSame(sprs.backW2)) body.change(sprs.backW1);
+            
+            if(body.isSame(sprs.front))        body.change(sprs.frontW1);
+            else if(body.isSame(sprs.frontW1)) body.change(sprs.frontW2);
+            else if(body.isSame(sprs.frontW2)) body.change(sprs.frontW1);
+            
+            if(body.isSame(sprs.left))       body.change(sprs.leftW);
+            else if(body.isSame(sprs.leftW)) body.change(sprs.left);
+            
+            if(body.isSame(sprs.right))       body.change(sprs.rightW);
+            else if(body.isSame(sprs.rightW)) body.change(sprs.right);
         });
         timer.start();
         
@@ -263,6 +270,8 @@ class Player{
         timeToShotBullet(elapsed, ()=>{
           let pos = this.pos;
           let mousePos = this.mousePos;
+          if(this.mode === "p1") playAudio('shoot', 0.3);
+          else playAudio('shoot', 0.2);
         
           let bulletObj = new Img(bulletCon, sprs.bullet);
           let bullet = bulletObj.spr;
